@@ -1,0 +1,176 @@
+<section class="declare-results">
+  <h2>📢 Declare Results</h2>
+  <p>Select an exam below to declare or reset student result access.</p>
+
+  <div id="examList" class="exam-list"></div>
+
+  <script>
+  
+    async function loadExams() {
+      try {
+        const res = await fetch(`${API}/admin/tests`);
+        const exams = await res.json();
+
+        const examList = document.getElementById("examList");
+        examList.innerHTML = "";
+
+        if (!exams.length) {
+          examList.innerHTML = "<p>No exams available.</p>";
+          return;
+        }
+
+        exams.forEach((exam) => {
+          const declared = exam.resultsDeclared ? "✅ Declared" : "📢 Declare";
+          const card = document.createElement("div");
+          card.classList.add("exam-card");
+
+          card.innerHTML = `
+            <div class="exam-info">
+              <h3>${exam.title}</h3>
+              <p><strong>Subject:</strong> ${exam.subject}</p>
+              <p><strong>Total Questions:</strong> ${exam.questions.length}</p>
+              <p><strong>Duration:</strong> ${exam.duration || 20} mins</p>
+              <p><strong>Created On:</strong> ${new Date(exam.createdAt).toLocaleDateString()}</p>
+            </div>
+            <div class="btn-group">
+              <button class="declareBtn" id="declare-${exam._id}" ${exam.resultsDeclared ? "disabled" : ""} onclick="declareResults('${exam._id}')">
+                ${declared}
+              </button>
+              <button class="resetBtn" id="reset-${exam._id}" ${!exam.resultsDeclared ? "disabled" : ""} onclick="resetResults('${exam._id}')">
+                🔄 Reset
+              </button>
+            </div>
+          `;
+          examList.appendChild(card);
+        });
+      } catch (err) {
+        console.error("Error loading exams:", err);
+        document.getElementById("examList").innerHTML = "<p>Error loading exams.</p>";
+      }
+    }
+
+    // ✅ Declare Results (Enable student result view)
+    async function declareResults(examId) {
+      const btn = document.getElementById(`declare-${examId}`);
+      const resetBtn = document.getElementById(`reset-${examId}`);
+      btn.disabled = true;
+      btn.textContent = "⏳ Updating...";
+
+      try {
+        const res = await fetch(`${API}/admin/tests/${examId}/declareResults`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resultsDeclared: true }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          btn.textContent = "✅ Declared";
+          btn.style.background = "#28a745";
+          resetBtn.disabled = false;
+          alert("✅ Results declared successfully!");
+        } else {
+          btn.textContent = "📢 Declare";
+          btn.disabled = false;
+          alert("❌ Failed: " + data.message);
+        }
+      } catch (err) {
+        console.error("Error declaring results:", err);
+        btn.textContent = "📢 Declare";
+        btn.disabled = false;
+        alert("Error declaring results");
+      }
+    }
+
+    // 🔄 Reset Results (Disable student result view)
+    async function resetResults(examId) {
+      const btn = document.getElementById(`declare-${examId}`);
+      const resetBtn = document.getElementById(`reset-${examId}`);
+      resetBtn.disabled = true;
+      resetBtn.textContent = "⏳ Resetting...";
+
+      try {
+        const res = await fetch(`${API}/admin/tests/${examId}/declareResults`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resultsDeclared: false }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          btn.textContent = "📢 Declare";
+          btn.disabled = false;
+          btn.style.background = "#007bff";
+          resetBtn.textContent = "🔄 Reset";
+          alert("🔁 Results reset successfully!");
+        } else {
+          resetBtn.textContent = "🔄 Reset";
+          resetBtn.disabled = false;
+          alert("❌ Failed: " + data.message);
+        }
+      } catch (err) {
+        console.error("Error resetting results:", err);
+        resetBtn.textContent = "🔄 Reset";
+        resetBtn.disabled = false;
+        alert("Error resetting results");
+      }
+    }
+
+    loadExams();
+  </script>
+
+  <style>
+    .declare-results {
+      max-width: 900px;
+      margin: 30px auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      padding: 20px 30px;
+    }
+    .declare-results h2 {
+      color: #007bff;
+      margin-bottom: 15px;
+    }
+    .exam-card {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .exam-info p {
+      margin: 3px 0;
+    }
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .declareBtn, .resetBtn {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .declareBtn {
+      background: #007bff;
+    }
+    .declareBtn[disabled] {
+      background: #28a745;
+      cursor: not-allowed;
+    }
+    .resetBtn {
+      background: #dc3545;
+    }
+    .resetBtn[disabled] {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+  </style>
+</section>

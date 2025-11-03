@@ -1,0 +1,254 @@
+<!-- public/report.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>📊 Test Report</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: "Poppins", sans-serif; background:#f7f9fc; margin:0; padding:20px; }
+    .report-container { max-width: 920px; margin:20px auto; background:#fff; border-radius:10px; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,0.08); }
+    h1 { text-align:center; margin-bottom:8px; }
+    .summary { text-align:center; margin-bottom:20px; }
+    .stats { display:flex; justify-content:center; gap:12px; margin-top:12px; }
+    .stat { background:#f1f3f6; padding:8px 14px; border-radius:8px; font-weight:600; }
+    .btn { display:inline-block; padding:10px 14px; background:#007bff; color:#fff; border:none; border-radius:8px; cursor:pointer; margin:6px; }
+    .btn.gray { background:#6c757d; }
+    .question-viewer { display:none; margin-top:18px; }
+    .question-card { background:#fff; border:1px solid #e6e9ee; border-radius:10px; padding:16px; margin-bottom:12px; }
+    .option { margin:6px 0; padding:8px; border-radius:6px; display:flex; align-items:center; gap:10px; }
+    .option.correct { background:#e6ffed; border-left:4px solid #2ecc71; }
+    .option.wrong { background:#ffecec; border-left:4px solid #ff4d4f; }
+    .meta { color:#555; font-size:14px; margin-top:8px; }
+    .nav { display:flex; justify-content:space-between; margin-top:12px; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <h1>📊 Test Report</h1>
+
+    <div id="summarySection" class="summary">Loading...</div>
+
+    <div style="text-align:center;">
+      <button id="backBtn" class="btn gray">← Back to Dashboard</button>
+    </div>
+
+    <div id="solutionViewer" class="question-viewer">
+      <div id="questionContainer"></div>
+      <div class="nav">
+        <button id="prevBtn" class="btn gray">⬅ Previous</button>
+        <div>
+          <button id="downloadBtn" class="btn">Download Report</button>
+          <button id="nextBtn" class="btn">Next ➡</button>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+let questions = [];
+let currentIndex = 0;
+let submissions = []; // store all attempts
+let currentSubmission = null;
+
+const params = new URLSearchParams(window.location.search);
+const examId = params.get("examId");
+const userEmail = params.get("email");
+
+document.getElementById("backBtn").onclick = () => {
+  window.location.href = "examDashboard.html";
+};
+
+function safeDateString(dateLike) {
+  if (!dateLike) return "Unknown";
+  const d = new Date(dateLike);
+  if (isNaN(d.getTime())) return "Unknown";
+  return d.toLocaleString();
+}
+
+async function loadReport() {
+  const summaryDiv = document.getElementById("summarySection");
+
+  if (!examId || !userEmail) {
+    summaryDiv.innerHTML = "<p>Missing examId or user email in URL.</p>";
+    return;
+  }
+
+  try {
+    const res = await fetch("/admin/submissions");
+    const data = await res.json();
+
+    // filter all submissions for this test & user
+    submissions = data.filter(s => {
+      const sTestId = s.testId?._id ? String(s.testId._id) : String(s.testId);
+      return sTestId === examId && s.userEmail === userEmail;
+    });
+
+    if (submissions.length === 0) {
+      summaryDiv.innerHTML = `<p>No submissions found for ${userEmail} on this test.</p>`;
+      return;
+    }
+
+    // sort chronologically: oldest -> newest (change sign for newest->oldest)
+    submissions.sort((a, b) => {
+      const da = new Date(a.submittedAt || a.createdAt || a.updatedAt || 0).getTime();
+      const db = new Date(b.submittedAt || b.createdAt || b.updatedAt || 0).getTime();
+      return da - db; // oldest first
+    });
+
+    // show summary table for all attempts
+    let tableHtml = `
+      <h2>${submissions[0].userName || ''} <small style="color:#666">(${userEmail})</small></h2>
+      <p><strong>Test:</strong> ${submissions[0].testId?.title || 'Unknown'} (${submissions[0].testId?.subject || ''})</p>
+      <h3 style="margin-top:15px;">All Attempts</h3>
+      <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse; width:100%; text-align:center;">
+        <tr style="background:#f8f9fa;">
+          <th>Attempt</th>
+          <th>Date</th>
+          <th>Score</th>
+          <th>Correct</th>
+          <th>Wrong</th>
+          <th>Not Answered</th>
+          <th>Action</th>
+        </tr>
+    `;
+
+    submissions.forEach((s, i) => {
+      // attempt number = chronological index (1 = first attempt)
+      const attemptNumber = i + 1;
+      const dateStr = safeDateString(s.submittedAt || s.createdAt || s.updatedAt);
+      const scoreStr = (typeof s.score !== "undefined" && s.score !== null) ? `${Number(s.score).toFixed(2)}%` : "N/A";
+      const correct = typeof s.correctCount !== "undefined" ? s.correctCount : (s.correct || 0);
+      const wrong = typeof s.wrongCount !== "undefined" ? s.wrongCount : (s.wrong || 0);
+
+      // compute not answered count from answers array
+      let notAnswered = 0;
+      if (Array.isArray(s.answers)) {
+        notAnswered = s.answers.reduce((acc, ans) => {
+          if (ans.selectedOption === undefined || ans.selectedOption === null) return acc + 1;
+          return acc;
+        }, 0);
+      } else {
+        notAnswered = "N/A";
+      }
+
+      tableHtml += `
+        <tr>
+          <td>${attemptNumber}</td>
+          <td>${dateStr}</td>
+          <td>${scoreStr}</td>
+          <td>${correct}</td>
+          <td>${wrong}</td>
+          <td>${notAnswered}</td>
+          <td><button class="viewBtn" data-index="${i}" style="padding:6px 10px; background:#007bff; color:white; border:none; border-radius:6px; cursor:pointer;">View Solutions</button></td>
+        </tr>`;
+    });
+
+    tableHtml += `</table>`;
+    summaryDiv.innerHTML = tableHtml;
+
+    // attach click handlers for buttons
+    document.querySelectorAll(".viewBtn").forEach(btn => {
+      btn.addEventListener("click", e => {
+        const index = parseInt(e.target.getAttribute("data-index"), 10);
+        openSubmission(index);
+      });
+    });
+
+  } catch (err) {
+    console.error(err);
+    summaryDiv.innerHTML = "<p>Error loading report.</p>";
+  }
+}
+
+function openSubmission(index) {
+  currentSubmission = submissions[index];
+  questions = currentSubmission.answers || [];
+
+  // show solutions viewer
+  document.getElementById("solutionViewer").style.display = "block";
+  document.getElementById("summarySection").style.display = "none";
+  // hide main "View Solutions" btn if present
+  const btn = document.getElementById("viewSolutionsBtn");
+  if (btn) btn.style.display = "none";
+
+  currentIndex = 0;
+  showQuestion(currentIndex);
+}
+
+function showQuestion(index) {
+  const q = questions[index];
+  const container = document.getElementById("questionContainer");
+
+  if (!q) {
+    container.innerHTML = "<p>Question not found.</p>";
+    return;
+  }
+
+  const opts = (q.options && q.options.length)
+    ? q.options
+    : (currentSubmission.testId?.questions?.find(qq => qq.question === q.question)?.options || []);
+
+  const optionsHtml = opts.map((opt, i) => {
+    const isCorrectOpt = i === q.correctOption;
+    const isSelected = typeof q.selectedOption !== "undefined" && q.selectedOption === i;
+    let style = "";
+    if (isCorrectOpt) style = "background:#d4edda; border-left:5px solid green;";
+    else if (isSelected && !q.isCorrect) style = "background:#f8d7da; border-left:5px solid red;";
+    return `<p style="padding:6px; border-radius:5px; ${style}">
+      <input type="radio" disabled ${isSelected ? "checked" : ""}> ${opt}
+    </p>`;
+  }).join("");
+
+  container.innerHTML = `
+    <div class="question-card">
+      <h3>Q${index + 1}. ${q.question}</h3>
+      ${optionsHtml || "<p><i>No options stored for this question.</i></p>"}
+      <hr>
+      <p><b>Your Answer:</b> ${typeof q.selectedOption !== "undefined" ? (opts[q.selectedOption] || `Option ${q.selectedOption}`) : "Not Answered"}</p>
+      <p><b>Correct Answer:</b> ${q.correctOptionText || (opts[q.correctOption] || `Option ${q.correctOption}`)}</p>
+      <p><b>Explanation:</b> ${q.explanation || "No explanation available."}</p>
+      </div>
+  `;
+
+  document.getElementById("prevBtn").disabled = index === 0;
+  document.getElementById("nextBtn").disabled = index === questions.length - 1;
+}
+
+document.getElementById("nextBtn").onclick = () => {
+  if (currentIndex < questions.length - 1) {
+    currentIndex++;
+    showQuestion(currentIndex);
+  }
+};
+
+document.getElementById("prevBtn").onclick = () => {
+  if (currentIndex > 0) {
+    currentIndex--;
+    showQuestion(currentIndex);
+  }
+};
+
+document.getElementById("downloadBtn").onclick = () => {
+  const data = {
+    examId,
+    userEmail,
+    userName: currentSubmission?.userName,
+    score: currentSubmission?.score,
+    questions,
+    timestamp: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `report_${userEmail}_${examId}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+// Initialize
+loadReport();
+</script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Online Examination System</title>
+  <link rel="icon" type="image/x-icon" href="./components/exam.jpeg">
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
+  <header>
+    <div class="brand">🧠 Online Examination System</div>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>Welcome to the Online Examination Portal</h1>
+    <p>Access exams securely, manage candidates, and analyze performance — all in one place.</p>
+    <div class="hero-buttons">
+      <button id="signin-btn">Login</button>
+      <button id="signup-btn">Register</button>
+    </div>
+  </section>
+
+  <!-- ✅ Login Modal -->
+  <div class="modal" id="loginModal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeLogin">&times;</span>
+      <h2 class="title">Login</h2>
+      <form id="loginForm">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="Enter Email" required>
+
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter Password" required>
+        <button type="submit">Login</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ✅ Register Modal -->
+  <div class="modal" id="registerModal">
+    <div class="modal-content">
+      <span class="close-btn" id="closeRegister">&times;</span>
+      <h2 class="title">Register</h2>
+      <form id="registerForm">
+        <label>Full Name</label>
+        <input type="text" id="registerName" placeholder="Enter Full Name" required>
+
+        <label>Select Role</label>
+        <select id="registerRole" required>
+          <option value="">-- Select Role --</option>
+          <option value="student">Student</option>
+          <option value="admin">Admin</option>
+        </select>
+
+        <div id="extraFields"></div>
+
+        <label>Email</label>
+        <input type="email" id="registerEmail" placeholder="Enter Email" required>
+
+        <label>Password</label>
+        <input type="password" id="registerPassword" placeholder="Enter Password" required>
+
+        <label>Confirm Password</label>
+        <input type="password" id="registerConfirm" placeholder="Confirm Password" required>
+
+        <button type="submit">Register</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ✅ Features -->
+  <section id="features" class="features">
+    <div class="feature-card">
+      <h3>📝 Attend Exams</h3>
+      <p>Login using your exam credentials to access tests instantly.</p>
+    </div>
+
+    <div class="feature-card">
+      <h3>📚 Question Management</h3>
+      <p>Admins can create, edit, and publish exams effortlessly.</p>
+    </div>
+
+    <div class="feature-card">
+      <h3>📈 Performance Analytics</h3>
+      <p>Students can review results and track performance trends.</p>
+    </div>
+
+    <div class="feature-card">
+      <h3>🔒 Secure Platform</h3>
+      <p>Secure login and restricted navigation ensure exam integrity.</p>
+    </div>
+  </section>
+
+  <footer>
+    © 2025 Online Examination System | Designed for seamless and secure testing
+  </footer>
+
+  <script>
+    const loginBtn = document.getElementById("signin-btn");
+    const registerBtn = document.getElementById("signup-btn");
+    const loginModal = document.getElementById("loginModal");
+    const registerModal = document.getElementById("registerModal");
+    const roleSelect = document.getElementById("registerRole");
+    const extraFields = document.getElementById("extraFields");
+
+    const ADMIN_CODE = "ADMIN123"; // ✅ your secret admin access code
+
+    roleSelect.addEventListener("change", () => {
+      extraFields.innerHTML = "";
+      const selectedRole = roleSelect.value;
+
+      if (selectedRole === "admin") {
+        extraFields.innerHTML = `
+          <label>Admin Access Code</label>
+          <input type="text" id="adminCode" placeholder="Enter Admin Code" required>
+        `;
+      }
+    });
+
+    // Toggle Modals
+    loginBtn.onclick = () => {
+      loginModal.style.display = "flex";
+      registerModal.style.display = "none";
+    };
+
+    registerBtn.onclick = () => {
+      registerModal.style.display = "flex";
+      loginModal.style.display = "none";
+    };
+
+    document.getElementById("closeLogin").onclick = () => loginModal.style.display = "none";
+    document.getElementById("closeRegister").onclick = () => registerModal.style.display = "none";
+
+    // ✅ Handle Registration
+    document.getElementById("registerForm").onsubmit = async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById("registerName").value;
+      const role = document.getElementById("registerRole").value;
+      const email = document.getElementById("registerEmail").value;
+      const password = document.getElementById("registerPassword").value;
+      const confirm = document.getElementById("registerConfirm").value;
+
+      if (password !== confirm) return alert("Passwords do not match!");
+
+      if (role === "admin") {
+        const code = document.getElementById("adminCode").value.trim();
+        if (code !== ADMIN_CODE) {
+          alert("Invalid Admin Access Code!");
+          return;
+        }
+      }
+
+      const response = await fetch("http://localhost:5000/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, role }),
+      });
+
+      const data = await response.json();
+      alert(data.message);
+      if (data.success) registerModal.style.display = "none";
+    };
+
+    // ✅ Handle Login
+   document.getElementById("loginForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("loginEmail").value;
+  const password = document.getElementById("loginPassword").value;
+
+  const response = await fetch("http://localhost:5000/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const data = await response.json();
+  alert(data.message);
+
+  if (data.success) {
+    const encodedName = encodeURIComponent(data.username);
+    const encodedEmail = encodeURIComponent(data.email);
+    const encodedId = encodeURIComponent(data.userId);
+
+    if (data.role === "admin") {
+      window.location.href = `adminDashboard.html?id=${encodedId}&name=${encodedName}&email=${encodedEmail}`;
+    } else {
+      window.location.href = `examDashboard.html?id=${encodedId}&name=${encodedName}&email=${encodedEmail}`;
+    }
+  }
+};
+  </script>
+</body>
+</html>

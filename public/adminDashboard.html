@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="adminDashboard.css" />
+</head>
+<body>
+  <div class="admin-container">
+    <h1>Admin Dashboard</h1>
+
+    <div class="menu">
+      <button onclick="loadSnippet('createExam.html')">🧩 Create Exam</button>
+      <button onclick="loadSnippet('allExams.html')">📋 All Exams</button>
+      <button onclick="loadSnippet('userScores.html')">👥 User Scores</button>
+      <button onclick="loadSnippet('declareResults.html')">📢 Declare Results</button>
+    </div>
+
+    <div id="content">
+      <p>Select an option above to manage the system.</p>
+    </div>
+  </div>
+<script>
+  window.API = "http://localhost:5000";
+</script>
+  <script>
+    async function loadSnippet(page) {
+  const res = await fetch(page);
+  const html = await res.text();
+
+  const contentDiv = document.getElementById("content");
+  contentDiv.innerHTML = html;
+
+  // Execute any <script> tags inside the loaded HTML
+  const scripts = contentDiv.querySelectorAll("script");
+  scripts.forEach(script => {
+    const newScript = document.createElement("script");
+    if (script.src) {
+      newScript.src = script.src;
+    } else {
+      newScript.textContent = script.textContent;
+    }
+    document.body.appendChild(newScript);
+  });
+}
+
+  </script>
+</body>
+</html>

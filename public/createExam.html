@@ -1,0 +1,49 @@
+<section class="add-test">
+  <h2>Add New Test</h2>
+  <input type="text" id="title" placeholder="Test Title" />
+  <input type="text" id="subject" placeholder="Subject" />
+<input type="number" id="duration" placeholder="Duration (minutes)" />
+  <textarea id="questions" placeholder='Enter questions in JSON format'></textarea>
+  <button onclick="addTest()">Add Test</button>
+</section>
+
+<script>
+  async function addTest() {
+    const title = document.getElementById("title").value.trim();
+    const subject = document.getElementById("subject").value.trim();
+    const durationInput = document.getElementById("duration").value.trim();
+    const questionsText = document.getElementById("questions").value.trim();
+
+    if (!title || !subject || !durationInput || !questionsText) {
+      alert("Please fill all fields (including duration)");
+      return;
+    }
+
+    const duration = parseInt(durationInput); // ✅ Convert to number
+    if (isNaN(duration) || duration <= 0) {
+      alert("Please enter a valid positive number for duration");
+      return;
+    }
+
+    let questions;
+    try {
+      questions = JSON.parse(questionsText);
+    } catch (err) {
+      alert("Invalid JSON format for questions");
+      return;
+    }
+
+    console.log("Sending Payload:", { title, subject, duration, questions }); // ✅ Check this
+
+    const res = await fetch(`${API}/admin/add-test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, subject, duration, questions }),
+    });
+
+    const data = await res.json();
+    alert(data.message);
+  }
+</script>
+
+

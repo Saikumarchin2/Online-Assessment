@@ -1,0 +1,249 @@
+ <section class="user-scores">
+    <h2>👥 User Scores & Attempts</h2>
+    <div id="users">Loading...</div>
+  </section>
+<!-- 🔹 Student Details Modal -->
+<div id="studentModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeStudentModal()">&times;</span>
+    <div id="studentInfo">Loading...</div>
+  </div>
+</div>
+  <script>
+    
+async function loadUsers() {
+   const [usersRes, subsRes] = await Promise.all([
+        fetch(`${API}/admin/users`),
+        fetch(`${API}/admin/submissions`)
+      ]);
+
+      const users = await usersRes.json();
+      allSubmissions = await subsRes.json();
+
+      const students = users.filter(u => u.role === "student");
+      const container = document.getElementById("users");
+
+
+  container.innerHTML = students.map(u => `
+    <div class="user-card">
+      <div class="user-info">
+        <img src="https://res.cloudinary.com/placeholder/image/upload/v1/default.jpg" id="photo-${u.email}" alt="photo">
+        <div>
+          <h3>${u.name}</h3>
+          <p><strong>Email:</strong> ${u.email}</p>
+        </div>
+      </div>
+      <button class="view-btn" onclick="viewStudentDetails('${u.email}')">View Details</button>
+      <button class="view-btn" style="background:#28a745;" onclick="viewSubmissions('${u.email}', this)">View Submissions</button>
+      <div class="submission-details" id="subs-${u.email}" style="display:none;"></div>
+    </div>
+  `).join("");
+
+  // Load profile photos if exist in students collection
+  for (const s of students) {
+    try {
+      const res = await fetch(`${API}/api/studentDetails/${s.email}`);
+      const data = await res.json();
+      if (data.success && data.student.photo) {
+        document.getElementById(`photo-${s.email}`).src = data.student.photo;
+      }
+    } catch (err) {
+      console.log("Error fetching photo:", s.email);
+    }
+  }
+}
+
+async function viewStudentDetails(email) {
+  let allSubmissions = [];
+  try {
+    const res = await fetch(`${API}/api/studentDetails/${email}`);
+    const data = await res.json();
+    if (!data.success) {
+      alert("Student not found!");
+      return;
+    }
+    const s = data.student;
+    document.getElementById("studentInfo").innerHTML = `
+      <img src="${s.photo}" alt="photo">
+      <h3>${s.name}</h3>
+      <p><strong>Email:</strong> ${s.email}</p>
+      <p><strong>Phone:</strong> ${s.phone}</p>
+      <p><strong>Branch:</strong> ${s.branch}</p>
+      <p><strong>Year:</strong> ${s.year}</p>
+      <p><strong>College:</strong> ${s.college}</p>
+      <p><strong>Passing Year:</strong> ${s.passingyear}</p>
+      <p><strong>Address:</strong> ${s.address}</p>
+      <p><strong>Test Taken:</strong> ${s.testsTaken ? "✅ Yes" : "❌ No"}</p>
+    `;
+    document.getElementById("studentModal").style.display = "block";
+  } catch (err) {
+    console.error("Error loading details:", err);
+  }
+}
+
+function closeStudentModal() {
+  document.getElementById("studentModal").style.display = "none";
+}
+
+    function safeDateString(dateLike) {
+      if (!dateLike) return "Unknown";
+      const d = new Date(dateLike);
+      return isNaN(d.getTime()) ? "Unknown" : d.toLocaleString();
+    }
+
+    async function viewSubmissions(email, btn) {
+      
+      const section = document.getElementById(`subs-${email}`);
+      if (section.style.display === "block") {
+        section.style.display = "none";
+        btn.textContent = "View Submissions";
+        return;
+      }
+
+      btn.textContent = "Loading...";
+      const userSubs = allSubmissions.filter(s => s.userEmail === email);
+
+      if (!userSubs.length) {
+        section.innerHTML = `<p>No submissions yet.</p>`;
+        section.style.display = "block";
+        btn.textContent = "Hide Submissions";
+        return;
+      }
+
+      const grouped = {};
+      userSubs.forEach(s => {
+        const key = s.testId?._id || "Unknown";
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(s);
+      });
+      for (const key in grouped) {
+        grouped[key].sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+      }
+
+      section.innerHTML = Object.entries(grouped).map(([testId, attempts]) => `
+        <h4>${attempts[0].testId?.title || "Deleted Test"} (${attempts[0].testId?.subject || "N/A"})</h4>
+        <table>
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Score</th>
+            <th>Correct</th>
+            <th>Wrong</th>
+            <th>Unanswered</th>
+            <th>Actions</th>
+          </tr>
+          ${attempts.map((s, i) => {
+            const notAnswered = s.answers?.filter(a => a.selectedOption == null).length || 0;
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(s))));
+            return `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${safeDateString(s.submittedAt)}</td>
+                <td>${Number(s.score || 0).toFixed(2)}%</td>
+                <td>${s.correctCount}</td>
+                <td>${s.wrongCount}</td>
+                <td>${notAnswered}</td>
+                <td>
+  <button style="background:#007bff;color:white;border:none;border-radius:5px;padding:5px 8px;"
+    onclick="openSolution('${encoded}', this)">View Solutions</button>
+  <button style="background:#28a745;color:white;border:none;border-radius:5px;padding:5px 8px;margin-left:5px;"
+    onclick="viewMedia('${testId}', '${email}', this)">View Media</button>
+</td>
+
+              </tr>`;
+          }).join("")}
+        </table>
+      `).join("");
+
+      section.style.display = "block";
+      btn.textContent = "Hide Submissions";
+    }
+
+    function openSolution(encoded, btn) {
+  const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+  const parentRow = btn.closest("tr");
+  const existing = parentRow.nextElementSibling;
+
+  // toggle close
+  if (existing && existing.classList.contains("inline-section")) {
+    existing.remove();
+    btn.textContent = "View Solutions";
+    return;
+  }
+
+  btn.textContent = "Close Solutions";
+
+  const div = document.createElement("tr");
+  div.className = "inline-section";
+  div.innerHTML = `
+    <td colspan="7">
+      <h4>${decoded.testId?.title || "Test"} – Solutions</h4>
+      ${decoded.answers.map((a, i) => `
+        <div class="solution-item">
+          <strong>Q${i + 1}:</strong> ${a.question}<br>
+          <em>Your answer:</em> ${a.options[a.selectedOption] || "Not answered"}<br>
+          <em>Correct:</em> ${a.options[a.correctOption]}<br>
+          <small>${a.explanation || ""}</small>
+        </div>
+      `).join("")}
+    </td>`;
+  parentRow.insertAdjacentElement("afterend", div);
+}
+   async function viewMedia(testId, email, btn) {
+  const parentRow = btn.closest("tr");
+  const existing = parentRow.nextElementSibling;
+  if (existing && existing.classList.contains("inline-section")) {
+    existing.remove();
+    btn.textContent = "View Media";
+    return;
+  }
+
+  btn.textContent = "Loading...";
+
+  try {
+    const res = await fetch(`${API}/admin/exam-media/${testId}/${encodeURIComponent(email)}`);
+    if (!res.ok) throw new Error("Network response was not ok");
+
+    const data = await res.json();
+    if (!data || !data.success) throw new Error("Invalid response format");
+
+    const snapshots = Array.isArray(data.snapshots) ? data.snapshots : [];
+    const videos = Array.isArray(data.videos) ? data.videos : [];
+
+    const div = document.createElement("tr");
+    div.className = "inline-section";
+    div.innerHTML = `
+      <td colspan="7">
+        <h4>📸 Snapshots</h4>
+        <div class="snapshot-grid">
+          ${snapshots.length
+            ? snapshots.map(s => `
+                <div>
+                  <img src="${s.snapshot}" width="160" height="120">
+                  <p style="font-size:12px;">${safeDateString(s.timestamp)}</p>
+                </div>
+              `).join("")
+            : "<p>No snapshots available.</p>"}
+        </div>
+
+        <h4 style="margin-top:20px;">🎥 Recorded Videos</h4>
+        <div class="video-grid">
+          ${videos.length
+            ? videos.map(v => {
+                const url = typeof v === "string" ? v : v.videoUrl;
+                return `<video controls width="320"><source src="${url}" type="video/webm"></video>`;
+              }).join("")
+            : "<p>No videos uploaded.</p>"}
+        </div>
+      </td>`;
+    parentRow.insertAdjacentElement("afterend", div);
+    btn.textContent = "Close Media";
+  } catch (err) {
+    console.error("Error loading media:", err);
+    alert("⚠️ Failed to load media files. Please try again later.");
+    btn.textContent = "View Media";
+  }
+}
+
+    loadUsers();
+  </script>

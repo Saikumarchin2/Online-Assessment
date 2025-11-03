@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Online Exam</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background: #f5f7fb;
+      margin: 0;
+      padding: 20px;
+    }
+    .exam-container {
+      max-width: 900px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    }
+    h2 { text-align: center; color: #222; margin-bottom: 10px; }
+    .sub-info { text-align: center; color: #555; margin-bottom: 15px; }
+    .question {
+      background: #f9fafc;
+      padding: 18px 22px;
+      margin-bottom: 20px;
+      border-radius: 10px;
+      border-left: 6px solid #0984e3;
+    }
+    label { display: block; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+    label:hover { background: #eaf2ff; }
+    .submit-btn {
+      display: block;
+      background: #0984e3;
+      color: #fff;
+      border: none;
+      padding: 12px 25px;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 30px auto 0;
+    }
+    .submit-btn:hover { background: #0872c5; }
+    .video-box {
+      position: fixed;
+      bottom: 20px; right: 20px;
+      width: 260px; background: #fff; border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      padding: 10px; text-align: center; z-index: 1000;
+    }
+    .video-box video { width: 100%; border-radius: 8px; background: #000; }
+    .timer-status { margin-top: 8px; font-weight: 600; color: #d63031; }
+    .grant-status { font-size: 0.8rem; color: #555; }
+    /* Modal */
+    .modal {
+      display: none; position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; background: rgba(0,0,0,0.4);
+      justify-content: center; align-items: center; z-index: 2000;
+    }
+    .modal-content {
+      background: #fff; padding: 25px; border-radius: 10px; text-align: center;
+      max-width: 350px; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+    .modal-buttons {
+      display: flex; justify-content: space-around; margin-top: 20px;
+    }
+    .modal-buttons button {
+      padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
+    }
+    .confirm-btn { background: #0984e3; color: #fff; }
+    .cancel-btn { background: #dfe6e9; }
+    .upload-msg { color:#0984e3; font-weight:600; }
+    .success-msg { color:green; font-weight:600; }
+  </style>
+</head>
+<body>
+  <div class="exam-container">
+    <h2 id="examTitle">ONLINE ASSESSMENT TEST</h2>
+    <div class="sub-info" id="userInfo">Loading user...</div>
+    <div id="questionContainer"></div>
+    <button class="submit-btn" id="submitBtn" onclick="openSubmitModal()">Submit Test</button>
+  </div>
+
+  <div class="video-box">
+    <video id="webcam" autoplay muted playsinline></video>
+    <p>Proctoring Preview</p>
+    <p class="timer-status">Time Left: <span id="timer">--:--</span></p>
+    <p class="grant-status">Camera: Granted</p>
+  </div>
+
+  <!-- Submit confirmation modal -->
+  <div class="modal" id="confirmModal">
+    <div class="modal-content" id="modalContent">
+      <h3 id="modalText">Are you sure you want to submit the test?</h3>
+      <div class="modal-buttons" id="modalButtons">
+        <button class="confirm-btn" onclick="confirmSubmit()">Yes, Submit</button>
+        <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab switch warning modal -->
+  <div class="modal" id="tabSwitchModal">
+    <div class="modal-content">
+      <h3>You’re trying to switch tabs!</h3>
+      <p>This will end your test. Do you want to continue the test or exit?</p>
+      <div class="modal-buttons">
+        <button class="cancel-btn" onclick="cancelTabSwitch()">Continue Test</button>
+        <button class="confirm-btn" onclick="confirmTabExit()">Exit Test</button>
+      </div>
+    </div>
+  </div>
+
+ <script>
+  const API = "http://localhost:5000";
+  let testData = null, userAnswers = [], timerInterval, duration = 10 * 60;
+  let mediaRecorder, recordedChunks = [], localStream, snapshotInterval;
+  let tabSwitchCount = 0, tabSwitchDetected = false;
+
+  /* -------- LOAD EXAM -------- */
+  async function loadExam() {
+    const params = new URLSearchParams(location.search);
+    const testId = params.get("testId");
+    const userName = decodeURIComponent(params.get("name") || "Student");
+    const userEmail = decodeURIComponent(params.get("email") || "unknown@example.com");
+    document.getElementById("userInfo").innerText = `${userName} • ${userEmail}`;
+    console.log("🎯 Loading test for:", userName, userEmail);
+
+    try {
+      const res = await fetch(`${API}/api/getTest/${testId}`);
+      testData = await res.json();
+      if (!testData || !testData.questions) {
+        alert("❌ Failed to load test data.");
+        return;
+      }
+      console.log("✅ Test loaded:", testData.title);
+      document.getElementById("examTitle").innerText = testData.title || "Online Test";
+      renderQuestions(testData.questions);
+      startTimer(testData.duration ? testData.duration * 60 : duration);
+      await initWebcam();
+      startVideoRecording(testId, userEmail);
+    } catch (err) {
+      console.error(err);
+      alert("Error loading exam.");
+    }
+  }
+
+  function renderQuestions(questions) {
+    const c = document.getElementById("questionContainer");
+    c.innerHTML = "";
+    questions.forEach((q, i) => {
+      const div = document.createElement("div");
+      div.className = "question";
+      div.innerHTML = `
+        <p>Q${i + 1}. ${q.question}</p>
+        ${q.options
+          .map(
+            (opt, j) => `
+          <label>
+            <input type="radio" name="q${i}" value="${j}" onchange="saveAnswer(${i},${j})" />
+            ${opt}
+          </label>`
+          )
+          .join("")}
+      `;
+      c.appendChild(div);
+    });
+    console.log("🧾 Questions rendered:", questions.length);
+  }
+
+  function saveAnswer(qIndex, optIndex) {
+    userAnswers[qIndex] = optIndex;
+  }
+
+  function startTimer(sec) {
+    let t = sec;
+    timerInterval = setInterval(() => {
+      const m = Math.floor(t / 60).toString().padStart(2, "0");
+      const s = (t % 60).toString().padStart(2, "0");
+      document.getElementById("timer").innerText = `${m}:${s}`;
+      if (t-- <= 0) {
+        clearInterval(timerInterval);
+        submitTest(true);
+      }
+    }, 1000);
+    console.log("⏱ Timer started for", sec, "seconds");
+  }
+
+  async function initWebcam() {
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      document.getElementById("webcam").srcObject = localStream;
+      console.log("📷 Webcam initialized");
+    } catch (err) {
+      alert("Unable to access camera.");
+      console.error(err);
+    }
+  }
+
+  function startVideoRecording(testId, userEmail) {
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(localStream, { mimeType: "video/webm;codecs=vp9,opus" });
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+    };
+    mediaRecorder.start();
+    console.log("🎥 Recording started...");
+    snapshotInterval = setInterval(() => captureSnapshot(testId, userEmail), 5000);
+  }
+
+  async function captureSnapshot(testId, userEmail) {
+    try {
+      const v = document.getElementById("webcam");
+      const c = document.createElement("canvas");
+      c.width = v.videoWidth || 640;
+      c.height = v.videoHeight || 480;
+      c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+      const base64 = c.toDataURL("image/jpeg", 0.7);
+      const res = await fetch(`${API}/api/uploadSnapshot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ snapshot: base64, userEmail, testId, timestamp: new Date() }),
+      });
+      if (!res.ok) console.error("❌ Snapshot upload failed:", await res.text());
+      else console.log("✅ Snapshot uploaded");
+    } catch (err) {
+      console.warn("Snapshot upload failed:", err);
+    }
+  }
+
+  async function stopVideoRecordingAndUploadBeforeSubmit() {
+    return new Promise((resolve) => {
+      if (!mediaRecorder || mediaRecorder.state !== "recording") return resolve(true);
+      clearInterval(snapshotInterval);
+      console.log("🛑 Stopping recording...");
+      mediaRecorder.onstop = async () => {
+        console.log("📦 Preparing video for upload...");
+        const blob = new Blob(recordedChunks, { type: "video/webm" });
+        const base64 = await blobToBase64(blob);
+        const p = new URLSearchParams(location.search);
+        const testId = p.get("testId");
+        const email = decodeURIComponent(p.get("email") || "unknown@example.com");
+        try {
+          console.log("⬆️ Uploading video...");
+          const r = await fetch(`${API}/api/uploadVideo`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ video: base64, userEmail: email, testId, timestamp: new Date() }),
+          });
+          if (r.ok) console.log("✅ Video uploaded successfully!");
+          resolve(r.ok);
+        } catch (err) {
+          console.error("Upload error:", err);
+          resolve(false);
+        }
+      };
+      mediaRecorder.stop();
+    });
+  }
+
+  function blobToBase64(b) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onloadend = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(b);
+    });
+  }
+
+  async function submitTest(auto = false) {
+    clearInterval(timerInterval);
+    console.log("🚀 Submitting test (auto:", auto, ")");
+    updateModalState("Uploading your video, please wait...", true);
+    const uploadOk = await stopVideoRecordingAndUploadBeforeSubmit();
+    if (!uploadOk) {
+      updateModalState("Video upload failed. Contact admin.", false, true);
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    const userName = decodeURIComponent(params.get("name") || "Student");
+    const userEmail = decodeURIComponent(params.get("email") || "unknown@example.com");
+
+    try {
+      const res = await fetch(`${API}/api/submitTest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          testId: testData._id,
+          userEmail,
+          userName,
+          answers: userAnswers,
+          autoSubmit: auto,
+        }),
+      });
+      const result = await res.json();
+     if (result.success) {
+  console.log("✅ Test submitted successfully!");
+  await fetch(`${API}/api/updateTestsTaken/${userEmail}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ testsTaken: true }),
+  });
+  window.onbeforeunload = null;
+  updateModalState("✅ Test submitted successfully! Redirecting...", false, true, true);
+  setTimeout(() => (window.location.href = "examDashboard.html"), 3000);
+}
+else {
+        updateModalState("❌ Submission failed. Try again.", false, true);
+      }
+    } catch (err) {
+      updateModalState("Error during submission.", false, true);
+      console.error(err);
+    }
+  }
+
+  function openSubmitModal() {
+    document.getElementById("confirmModal").style.display = "flex";
+    document.getElementById("modalText").innerText = "Are you sure you want to submit the test?";
+    document.getElementById("modalButtons").style.display = "flex";
+  }
+  function closeModal() {
+    document.getElementById("confirmModal").style.display = "none";
+  }
+  function confirmSubmit() {
+    document.getElementById("modalButtons").style.display = "none";
+    submitTest();
+  }
+
+  function updateModalState(message, showSpinner = false, done = false, success = false) {
+    const text = document.getElementById("modalText");
+    text.innerHTML = `<span class="${success ? "success-msg" : "upload-msg"}">${message}</span>`;
+    if (done) document.getElementById("modalButtons").style.display = "none";
+    document.getElementById("confirmModal").style.display = "flex";
+  }
+
+  /* -------- TAB SWITCH / LEAVE HANDLING -------- */
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      tabSwitchCount++;
+      console.log(`⚠️ Tab switch detected (${tabSwitchCount})`);
+      if (tabSwitchCount >= 2) {
+        console.log("🚨 Multiple tab switches detected! Auto-submitting test...");
+        submitTest(true);
+      } else if (!tabSwitchDetected) {
+        tabSwitchDetected = true;
+        document.getElementById("tabSwitchModal").style.display = "flex";
+      }
+    }
+  });
+
+  function cancelTabSwitch() {
+    console.log("🟢 Tab switch cancelled, continuing test...");
+    document.getElementById("tabSwitchModal").style.display = "none";
+    tabSwitchDetected = false;
+  }
+
+  function confirmTabExit() {
+    console.log("🔴 User confirmed exit due to tab switch.");
+    document.getElementById("tabSwitchModal").style.display = "none";
+    submitTest(true);
+  }
+
+  window.onbeforeunload = function (e) {
+    e.preventDefault();
+    e.returnValue =
+      "Are you sure you want to leave? The test will be submitted automatically if you leave.";
+  };
+
+  window.onload = loadExam;
+</script>
+
+</body>
+</html>

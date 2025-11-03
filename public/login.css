@@ -1,0 +1,190 @@
+ * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    /* ✅ Background applied to entire page */
+    body {
+      background: url('./Assets/Assets.jpg') no-repeat center 65px fixed;
+      background-size: cover;
+      color: white;
+      min-height: 100vh;
+    }
+
+    header {
+      background: rgba(0, 0, 0, 0.55);
+      color: white;
+      padding: 18px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(6px);
+    }
+
+    .brand {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    nav a {
+      color: white;
+      margin-left: 20px;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+  nav a:hover {
+  border: 2px solid white;
+  border-radius: 5px;
+  padding: 6px 10px; /* optional – keeps text from shifting */
+  background: rgba(255,255,255,0.1); /* optional – adds glow effect */
+}
+
+    /* ✅ Hero Section */
+    .hero {
+      text-align: center;
+      margin-top: 60px;
+      padding: 140px 20px 60px;
+    }
+
+    .hero h1 {
+      font-size: 3.5rem;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      color: rgb(5, 5, 99);
+      margin-bottom: 20px;
+    }
+
+    .hero p {
+      font-size: 1.5rem;
+      opacity: 0.9;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+      color: rgb(5, 5, 99);
+      margin-bottom: 30px;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .hero-buttons button {
+      margin: 10px;
+      padding: 12px 24px;
+      border: 3px solid white;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: 0.3s;
+      background: transparent;
+      color: white;
+      font-weight: 600;
+    }
+
+    .hero-buttons button.active {
+      background: white;
+      color: #0078ff;
+    }
+
+    .hero-buttons button:hover {
+      background: rgba(4, 4, 4, 0.15);
+      animation: blink 0.8s infinite;
+    }
+
+    /* ✅ Features Section */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      padding: 60px 40px;
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    .feature-card {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      backdrop-filter: blur(6px);
+      cursor: pointer;
+    }
+
+    .feature-card h3 {
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .feature-card p {
+      color: #e0e0e0;
+      font-size: 0.95rem;
+    }
+
+    footer {
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      text-align: center;
+      padding: 18px 10px;
+      font-size: 0.9rem;
+      margin-top: 60px;
+      backdrop-filter: blur(4px);
+    }
+
+    /* ✅ Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+      backdrop-filter: blur(3px);
+    }
+
+    .modal-content {
+      background: rgba(255,255,255,0.15);
+      padding: 30px;
+      border-radius: 10px;
+      width: 320px;
+      color: #fff;
+      text-align: left;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .title {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .modal-content input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0 16px;
+      border: none;
+      border-radius: 5px;
+      font-size: 0.95rem;
+    }
+
+    .modal-content button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #0078ff;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .close-btn {
+      float: right;
+      font-size: 1.4rem;
+      cursor: pointer;
+    }

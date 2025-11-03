@@ -1,0 +1,45 @@
+<section class="view-tests">
+  <h2>All Tests</h2>
+  <div id="tests"></div>
+</section>
+
+<script>
+(async () => {
+  async function loadTests() {
+    try {
+      const res = await fetch(`${API}/admin/tests`);
+      const exams = await res.json();
+      const examList = document.getElementById("tests");
+      examList.innerHTML = "";
+
+      if (!exams.length) {
+        examList.innerHTML = "<p>No exams available right now.</p>";
+        return;
+      }
+
+      exams.forEach((exam) => {
+        const card = document.createElement("div");
+        card.classList.add("exam-card");
+        card.innerHTML = `
+          <div class="exam-card">
+            <div class="exam-details">
+              <h3>${exam.title}</h3>
+              <p><strong>Subject:</strong> ${exam.subject}</p>
+              <p><strong>Total Questions:</strong> ${exam.questions.length}</p>
+              <p><strong>Duration:</strong> ${exam.duration || "20 mins"}</p>
+              <p><strong>Created On:</strong> ${new Date(exam.createdAt).toLocaleDateString()}</p>
+            </div>
+          </div>
+        `;
+        examList.appendChild(card);
+      });
+    } catch (error) {
+      console.error("Error fetching exams:", error);
+      document.getElementById("tests").innerHTML =
+        "<p>⚠️ Unable to load exams. Please try again later.</p>";
+    }
+  }
+
+  loadTests();
+})();
+</script>
