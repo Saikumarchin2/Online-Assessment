@@ -1,35 +1,40 @@
-# 🧠 Online Assessment Test Portal
+🧠 Online Assessment Test Portal
 
-A **secure and interactive online examination system** designed to manage and conduct tests efficiently. This project enables smooth exam administration with user authentication, automatic submission, camera monitoring, and detailed reporting.
+A secure and interactive online examination system designed to manage and conduct tests efficiently.
+This project enables smooth exam administration with user authentication, automatic submission, camera monitoring, and detailed reporting — ensuring exam integrity and ease of management.
 
----
+🚀 Features
+👩‍💻 For Students
 
-## 🚀 Features
+Clean and user-friendly interface for taking exams
 
-### 👩‍💻 For Students
-- User-friendly interface for taking exams  
-- Live camera and audio monitoring  
-- Automatic answer submission upon timer expiry  
-- Real-time feedback and score display  
-- Snapshot and activity tracking for integrity  
+Live camera and audio monitoring for proctoring
 
-### 🧑‍🏫 For Admins
-- Dashboard to manage users and exams  
-- Add, edit, or delete questions easily  
-- Monitor student activities during the test  
-- View and download test reports and analytics  
+Automatic answer submission when the timer ends
 
----
+Instant feedback and score display after submission
 
-## 🛠️ Tech Stack
+Continuous snapshot and activity tracking for integrity
 
-| Category | Technologies Used |
-|-----------|------------------|
-| **Frontend** | HTML, CSS, JavaScript |
-| **Backend** | Node.js / Express.js  |
-| **Database** | MongoDb |
-| **Version Control** | Git & GitHub |
+🧑‍🏫 For Admins
 
----
+Comprehensive dashboard to manage users and exams
 
-## 📂 Folder Structure
+Add, edit, or delete questions dynamically
+
+Monitor student activities during the test in real-time
+
+View, export, and analyze detailed test reports and analytics
+
+🛠️ Tech Stack
+Category	Technologies Used
+Frontend	HTML, CSS, JavaScript
+Backend	Node.js, Express.js
+Database	MongoDB
+Version Control	Git & GitHub
+Hosting Platform	Render.com
+🌐 Hosted Website
+
+🔗 Live Demo: https://online-assessment-o50m.onrender.com
+
+You can visit the above link to explore the live deployed version of the project.
