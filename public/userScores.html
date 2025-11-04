@@ -13,8 +13,8 @@
     
 async function loadUsers() {
    const [usersRes, subsRes] = await Promise.all([
-        fetch(`${API}/admin/users`),
-        fetch(`${API}/admin/submissions`)
+        fetch(`${API}admin/users`),
+        fetch(`${API}admin/submissions`)
       ]);
 
       const users = await usersRes.json();
@@ -42,7 +42,7 @@ async function loadUsers() {
   // Load profile photos if exist in students collection
   for (const s of students) {
     try {
-      const res = await fetch(`${API}/api/studentDetails/${s.email}`);
+      const res = await fetch(`${API}api/studentDetails/${s.email}`);
       const data = await res.json();
       if (data.success && data.student.photo) {
         document.getElementById(`photo-${s.email}`).src = data.student.photo;
@@ -56,7 +56,7 @@ async function loadUsers() {
 async function viewStudentDetails(email) {
   let allSubmissions = [];
   try {
-    const res = await fetch(`${API}/api/studentDetails/${email}`);
+    const res = await fetch(`${API}api/studentDetails/${email}`);
     const data = await res.json();
     if (!data.success) {
       alert("Student not found!");
@@ -201,7 +201,7 @@ function closeStudentModal() {
   btn.textContent = "Loading...";
 
   try {
-    const res = await fetch(`${API}/admin/exam-media/${testId}/${encodeURIComponent(email)}`);
+    const res = await fetch(`${API}admin/exam-media/${testId}/${encodeURIComponent(email)}`);
     if (!res.ok) throw new Error("Network response was not ok");
 
     const data = await res.json();

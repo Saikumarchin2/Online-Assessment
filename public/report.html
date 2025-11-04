@@ -75,7 +75,7 @@ async function loadReport() {
   }
 
   try {
-    const res = await fetch("/admin/submissions");
+    const res = await fetch("admin/submissions");
     const data = await res.json();
 
     // filter all submissions for this test & user

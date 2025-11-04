@@ -7,7 +7,7 @@
 (async () => {
   async function loadTests() {
     try {
-      const res = await fetch(`${API}/admin/tests`);
+      const res = await fetch(`${API}admin/tests`);
       const exams = await res.json();
       const examList = document.getElementById("tests");
       examList.innerHTML = "";

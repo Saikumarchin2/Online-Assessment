@@ -128,7 +128,7 @@
     console.log("🎯 Loading test for:", userName, userEmail);
 
     try {
-      const res = await fetch(`${API}/api/getTest/${testId}`);
+      const res = await fetch(`${API}api/getTest/${testId}`);
       testData = await res.json();
       if (!testData || !testData.questions) {
         alert("❌ Failed to load test data.");
@@ -217,7 +217,7 @@
       c.height = v.videoHeight || 480;
       c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
       const base64 = c.toDataURL("image/jpeg", 0.7);
-      const res = await fetch(`${API}/api/uploadSnapshot`, {
+      const res = await fetch(`${API}api/uploadSnapshot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ snapshot: base64, userEmail, testId, timestamp: new Date() }),
@@ -243,7 +243,7 @@
         const email = decodeURIComponent(p.get("email") || "unknown@example.com");
         try {
           console.log("⬆️ Uploading video...");
-          const r = await fetch(`${API}/api/uploadVideo`, {
+          const r = await fetch(`${API}api/uploadVideo`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ video: base64, userEmail: email, testId, timestamp: new Date() }),
@@ -283,7 +283,7 @@
     const userEmail = decodeURIComponent(params.get("email") || "unknown@example.com");
 
     try {
-      const res = await fetch(`${API}/api/submitTest`, {
+      const res = await fetch(`${API}api/submitTest`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -297,7 +297,7 @@
       const result = await res.json();
      if (result.success) {
   console.log("✅ Test submitted successfully!");
-  await fetch(`${API}/api/updateTestsTaken/${userEmail}`, {
+  await fetch(`${API}api/updateTestsTaken/${userEmail}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ testsTaken: true }),

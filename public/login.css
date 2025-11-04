@@ -7,7 +7,7 @@
 
     /* ✅ Background applied to entire page */
     body {
-      background: url('./Assets/Assets.jpg') no-repeat center 65px fixed;
+      background: url('./Assets/Assesst.jpg') no-repeat center 65px fixed;
       background-size: cover;
       color: white;
       min-height: 100vh;

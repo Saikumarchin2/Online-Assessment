@@ -8,7 +8,7 @@
   
     async function loadExams() {
       try {
-        const res = await fetch(`${API}/admin/tests`);
+        const res = await fetch(`${API}admin/tests`);
         const exams = await res.json();
 
         const examList = document.getElementById("examList");
@@ -57,7 +57,7 @@
       btn.textContent = "⏳ Updating...";
 
       try {
-        const res = await fetch(`${API}/admin/tests/${examId}/declareResults`, {
+        const res = await fetch(`${API}admin/tests/${examId}/declareResults`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ resultsDeclared: true }),
@@ -90,7 +90,7 @@
       resetBtn.textContent = "⏳ Resetting...";
 
       try {
-        const res = await fetch(`${API}/admin/tests/${examId}/declareResults`, {
+        const res = await fetch(`${API}admin/tests/${examId}/declareResults`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ resultsDeclared: false }),

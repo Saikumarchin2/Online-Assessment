@@ -100,7 +100,7 @@ const examList = document.getElementById("examList");
 // ✅ Load exams
 async function loadExams() {
   try {
-    const res = await fetch(`${API}/admin/tests`);
+    const res = await fetch(`${API}admin/tests`);
     const exams = await res.json();
     examList.innerHTML = "";
 
@@ -112,7 +112,7 @@ async function loadExams() {
     // ✅ Fetch current student's data once
     let studentData = null;
     try {
-      const studentRes = await fetch(`${API}/api/studentDetails/${userEmail}`);
+      const studentRes = await fetch(`${API}api/studentDetails/${userEmail}`);
       const studentJson = await studentRes.json();
       if (studentJson.success) studentData = studentJson.student;
     } catch {
@@ -195,7 +195,7 @@ document.getElementById("studentForm").addEventListener("submit", async function
   };
 
   try {
-    const res = await fetch(`${API}/api/studentDetails`, {
+    const res = await fetch(`${API}api/studentDetails`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(studentData),
@@ -239,7 +239,7 @@ function takeTest(testId) {
 // ✅ After Test Submission (called in exam.js)
 async function markTestAsTaken(userEmail) {
   try {
-    await fetch(`${API}/api/updateTestsTaken/${userEmail}`, {
+    await fetch(`${API}api/updateTestsTaken/${userEmail}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ testsTaken: true }),

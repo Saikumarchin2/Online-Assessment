@@ -35,7 +35,7 @@
 
     console.log("Sending Payload:", { title, subject, duration, questions }); // ✅ Check this
 
-    const res = await fetch(`${API}/admin/add-test`, {
+    const res = await fetch(`${API}admin/add-test`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, subject, duration, questions }),
