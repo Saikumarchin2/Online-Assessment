@@ -157,7 +157,9 @@ app.post("/register", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 });
-
+app.get("/test", (req, res) => {
+  res.json({ message: "Server is running!" });
+});
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
