@@ -193,7 +193,7 @@ const CHUNK_MAX_RETRIES = 3;
 
   async function initWebcam() {
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       document.getElementById("webcam").srcObject = localStream;
       console.log("📷 Webcam initialized");
     } catch (err) {
@@ -208,7 +208,7 @@ pendingUploads = new Set();
 
 
 // Keep small bitrate/mime to reduce size; keep codecs same as before
-mediaRecorder = new MediaRecorder(localStream, { mimeType: "video/webm;codecs=vp9,opus" });
+mediaRecorder = new MediaRecorder(localStream, { mimeType: "video/webm;codecs=vp8,opus" , videoBitsPerSecond: 250000  });
 
 
 mediaRecorder.ondataavailable = async (e) => {

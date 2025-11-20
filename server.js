@@ -380,7 +380,7 @@ app.post("/api/uploadSnapshot", async (req, res) => {
 
 
 // 3️⃣ Upload Video
-const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024 * 1024 } }); // 1 GB limit
+const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10 MB limit
 
 app.post('/api/uploadVideoChunk', uploadMemory.single('video'), async (req, res) => {
 try {
