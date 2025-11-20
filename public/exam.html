@@ -120,7 +120,7 @@
 // Chunked upload bookkeeping
 let chunkIndex = 0; // increments per chunk
 let pendingUploads = new Set(); // track pending uploads Promises
-const CHUNK_DURATION_MS = 30 * 1000; // 30 seconds per chunk
+const CHUNK_DURATION_MS = 5 * 1000; // 5 seconds per chunk
 const CHUNK_MAX_RETRIES = 3;
   /* -------- LOAD EXAM -------- */
   async function loadExam() {
