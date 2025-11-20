@@ -229,12 +229,10 @@ pendingUploads.add(upPromise);
 };
 
 
-mediaRecorder.start(CHUNK_DURATION_MS); // split into 30s chunks automatically
+mediaRecorder.start(CHUNK_DURATION_MS); // split into 5s chunks automatically
 console.log("🎥 Recording started (chunked)...");
 
-
-// snapshots continue as before
-snapshotInterval = setInterval(() => captureSnapshot(testId, userEmail), 5000);
+snapshotInterval = setInterval(() => captureSnapshot(testId, userEmail), 60000); // every 60s
 }
 
 
