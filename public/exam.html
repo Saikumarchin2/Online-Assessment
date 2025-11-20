@@ -115,9 +115,13 @@
  <script>
   const API = "https://online-assessment-o50m.onrender.com/";
   let testData = null, userAnswers = [], timerInterval, duration = 10 * 60;
-  let mediaRecorder, recordedChunks = [], localStream, snapshotInterval;
+  let mediaRecorder, localStream, snapshotInterval;
   let tabSwitchCount = 0, tabSwitchDetected = false;
-
+// Chunked upload bookkeeping
+let chunkIndex = 0; // increments per chunk
+let pendingUploads = new Set(); // track pending uploads Promises
+const CHUNK_DURATION_MS = 30 * 1000; // 30 seconds per chunk
+const CHUNK_MAX_RETRIES = 3;
   /* -------- LOAD EXAM -------- */
   async function loadExam() {
     const params = new URLSearchParams(location.search);
@@ -189,7 +193,7 @@
 
   async function initWebcam() {
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       document.getElementById("webcam").srcObject = localStream;
       console.log("📷 Webcam initialized");
     } catch (err) {
@@ -198,16 +202,72 @@
     }
   }
 
-  function startVideoRecording(testId, userEmail) {
-    recordedChunks = [];
-    mediaRecorder = new MediaRecorder(localStream, { mimeType: "video/webm;codecs=vp9,opus" });
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) recordedChunks.push(e.data);
-    };
-    mediaRecorder.start();
-    console.log("🎥 Recording started...");
-    snapshotInterval = setInterval(() => captureSnapshot(testId, userEmail), 5000);
-  }
+function startVideoRecording(testId, userEmail) {
+chunkIndex = 0;
+pendingUploads = new Set();
+
+
+// Keep small bitrate/mime to reduce size; keep codecs same as before
+mediaRecorder = new MediaRecorder(localStream, { mimeType: "video/webm;codecs=vp9,opus" });
+
+
+mediaRecorder.ondataavailable = async (e) => {
+if (!e.data || e.data.size === 0) return;
+const thisChunk = e.data;
+const idx = chunkIndex++;
+// create upload promise and add to pendingUploads
+const upPromise = uploadChunkWithRetries(thisChunk, testId, userEmail, idx, CHUNK_MAX_RETRIES)
+.then((res) => {
+if (res && res.success) console.log(`✅ Chunk ${idx} uploaded`);
+else console.warn(`⚠️ Chunk ${idx} upload reported failure`);
+})
+.catch((err) => console.error(`❌ Chunk ${idx} upload error:`, err))
+.finally(() => pendingUploads.delete(upPromise));
+
+
+pendingUploads.add(upPromise);
+};
+
+
+mediaRecorder.start(CHUNK_DURATION_MS); // split into 30s chunks automatically
+console.log("🎥 Recording started (chunked)...");
+
+
+// snapshots continue as before
+snapshotInterval = setInterval(() => captureSnapshot(testId, userEmail), 5000);
+}
+
+
+async function uploadChunkWithRetries(blob, testId, userEmail, index, retriesLeft) {
+try {
+return await uploadChunk(blob, testId, userEmail, index);
+} catch (err) {
+console.warn(`Chunk ${index} upload failed, retriesLeft=${retriesLeft}`, err);
+if (retriesLeft > 0) {
+await new Promise(r => setTimeout(r, 2000));
+return uploadChunkWithRetries(blob, testId, userEmail, index, retriesLeft - 1);
+}
+throw err;
+}
+}
+
+
+async function uploadChunk(blob, testId, userEmail, index) {
+const fd = new FormData();
+fd.append("video", blob, `chunk_${index}.webm`);
+fd.append("testId", testId);
+fd.append("userEmail", userEmail);
+fd.append("chunkIndex", String(index));
+fd.append("timestamp", new Date().toISOString());
+
+
+const res = await fetch(`${API}api/uploadVideoChunk`, {
+method: "POST",
+body: fd,
+});
+if (!res.ok) throw new Error(`Upload failed with status ${res.status}`);
+return res.json();
+}
 
   async function captureSnapshot(testId, userEmail) {
     try {
@@ -230,35 +290,36 @@
   }
 
   async function stopVideoRecordingAndUploadBeforeSubmit() {
-    return new Promise((resolve) => {
-      if (!mediaRecorder || mediaRecorder.state !== "recording") return resolve(true);
-      clearInterval(snapshotInterval);
-      console.log("🛑 Stopping recording...");
-      mediaRecorder.onstop = async () => {
-        console.log("📦 Preparing video for upload...");
-        const blob = new Blob(recordedChunks, { type: "video/webm" });
-        const base64 = await blobToBase64(blob);
-        const p = new URLSearchParams(location.search);
-        const testId = p.get("testId");
-        const email = decodeURIComponent(p.get("email") || "unknown@example.com");
-        try {
-          console.log("⬆️ Uploading video...");
-          const r = await fetch(`${API}api/uploadVideo`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ video: base64, userEmail: email, testId, timestamp: new Date() }),
-          });
-          if (r.ok) console.log("✅ Video uploaded successfully!");
-          resolve(r.ok);
-        } catch (err) {
-          console.error("Upload error:", err);
-          resolve(false);
-        }
-      };
-      mediaRecorder.stop();
-    });
-  }
+return new Promise((resolve) => {
+if (!mediaRecorder || mediaRecorder.state !== "recording") return resolve(true);
+clearInterval(snapshotInterval);
+console.log("🛑 Stopping recording (will wait for pending uploads)...");
 
+
+// stop the recorder which will trigger a final dataavailable event
+mediaRecorder.onstop = async () => {
+console.log("📦 Recorder stopped — waiting for pending uploads to finish...");
+// Wait for all pending upload promises to settle (with timeout)
+const uploads = Array.from(pendingUploads);
+try {
+// wait up to 60 seconds for all pending uploads
+await Promise.race([
+Promise.allSettled(uploads),
+new Promise((_, rej) => setTimeout(() => rej(new Error('Upload timeout')), 60000))
+]);
+console.log('✅ All chunk uploads completed or settled');
+resolve(true);
+} catch (err) {
+console.warn('⚠️ Some chunk uploads did not finish in time', err);
+// still resolve false so frontend knows upload had issues
+resolve(false);
+}
+};
+
+
+mediaRecorder.stop();
+});
+}
   function blobToBase64(b) {
     return new Promise((res, rej) => {
       const r = new FileReader();

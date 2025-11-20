@@ -13,13 +13,13 @@ const { v4: uuidv4 } = require("uuid");
 require("dotenv").config();
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("cloudinary").v2;
+const streamifier = require('streamifier');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 
-// Allow larger uploads (e.g., 200 MB)
 app.use(bodyParser.json({ limit: "200mb" }));
 app.use(bodyParser.urlencoded({ limit: "200mb", extended: true }));
 
@@ -118,8 +118,10 @@ const videoSchema = new mongoose.Schema({
   testId: { type: mongoose.Schema.Types.ObjectId, ref: "Test", required: true },
   userEmail: { type: String, required: true },
   videoUrl: String, // Cloudinary URL
+  chunkIndex: { type: Number },  
   timestamp: { type: Date, default: Date.now },
 });
+
 const Video = mongoose.model("Video", videoSchema); 
 
 const visibilityEventSchema = new mongoose.Schema({
@@ -378,6 +380,54 @@ app.post("/api/uploadSnapshot", async (req, res) => {
 
 
 // 3️⃣ Upload Video
+const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024 * 1024 } }); // 1 GB limit
+
+app.post('/api/uploadVideoChunk', uploadMemory.single('video'), async (req, res) => {
+try {
+const file = req.file;
+const { testId, userEmail, chunkIndex, timestamp } = req.body;
+if (!file || !testId || !userEmail) return res.status(400).json({ success: false, message: 'Missing fields' });
+
+
+// sanitize folder name
+const safeEmail = userEmail.replace(/[@.]/g, "_");
+const folderPath = `uploads/${safeEmail}_videos`;
+
+
+console.log(`📦 Received chunk ${chunkIndex} size=${file.size} bytes for ${userEmail}`);
+
+
+// upload stream to Cloudinary using upload_stream
+const publicId = `video_${Date.now()}_chunk_${chunkIndex}`;
+
+
+const streamUpload = () => new Promise((resolve, reject) => {
+const stream = cloudinary.uploader.upload_stream(
+{
+folder: folderPath,
+resource_type: 'video',
+public_id: publicId
+},
+(error, result) => {
+if (error) return reject(error);
+resolve(result);
+}
+);
+streamifier.createReadStream(file.buffer).pipe(stream);
+});
+
+
+const result = await streamUpload();
+const videoRecord = new Video({ testId, userEmail, videoUrl: result.secure_url, chunkIndex: Number(chunkIndex), timestamp: timestamp || Date.now() });
+await videoRecord.save();
+
+
+return res.json({ success: true, url: result.secure_url, chunkIndex });
+} catch (err) {
+console.error('❌ Chunk upload failed:', err);
+return res.status(500).json({ success: false, message: 'Chunk upload failed', error: err.message });
+}
+});
 
 app.post("/api/uploadVideo", async (req, res) => {
   try {
@@ -499,25 +549,6 @@ app.put("/admin/tests/:id/declareResults", async (req, res) => {
     res.status(500).json({ success: false, message: "Error declaring results" });
   }
 });
-
-
-// 4️⃣ Visibility Event
-app.post("/api/visibilityEvent", async (req, res) => {
-  try {
-    const { testId, userEmail, event, timestamp, switchCount } = req.body;
-    if (!testId || !userEmail || !event)
-      return res.status(400).json({ success: false, message: "Missing fields" });
-
-    const visEvent = new VisibilityEvent({ testId, userEmail, event, timestamp, switchCount });
-    await visEvent.save();
-
-    res.json({ success: true, message: "Visibility event logged" });
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Error logging visibility event", error: err.message });
-  }
-});
-
-// 🔍 Admin - Get monitoring data
 // 🔍 Admin - Get full monitoring data for a specific user in a test
 app.get("/admin/exam-media/:testId/:email", async (req, res) => {
   try {
@@ -540,11 +571,7 @@ app.get("/admin/exam-media/:testId/:email", async (req, res) => {
     res.status(500).json({ success: false, message: "Error fetching media", error: err.message });
   }
 });
-
-// ----------------- START -----------------
-app.get("/test", (req, res) => {
-    console.log(`🚀 Server running on https://online-assessment-o50m.onrender.com/`);
-});
+// ----------------- START SERVER -----------------
 app.listen(PORT, () => {
     console.log(`🚀 Server running on https://online-assessment-o50m.onrender.com/`);
 });
